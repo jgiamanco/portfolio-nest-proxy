@@ -79,7 +79,7 @@ export class SportsService {
           AwayTeamScore: game.AwayTeamRuns,
           HomeTeamScore: game.HomeTeamRuns,
           Channel: game.Channel,
-          StadiumDetails: `Inning: ${game.Inning}`,
+          StadiumDetails: game.Inning !== null ? `Inning: ${game.Inning}` : '',
         }));
       }
       case 'nfl': {
