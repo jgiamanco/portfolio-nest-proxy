@@ -7,13 +7,11 @@ async function bootstrap() {
   // Enable CORS
   app.enableCors({
     origin: ['http://localhost:3000', 'https://jacobgiamanco.vercel.app'],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
+  await app.listen(process.env.PORT || 3000);
 }
 
 if (require.main === module) {
