@@ -7,10 +7,10 @@ async function bootstrap() {
   // Enable CORS with updated origins
   app.enableCors({
     origin: [
-      'http://localhost:3000',
-      'http://localhost:8080',
-      'https://jacobgiamanco.vercel.app',
-      'https://portfolio-nest-proxy.vercel.app',
+      'http://localhost:8080', // Frontend development
+      'http://localhost:3001', // Backend development
+      'https://jacobgiamanco.vercel.app', // Frontend production
+      'https://portfolio-nest-proxy.vercel.app', // Backend production
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     allowedHeaders: [
@@ -27,7 +27,7 @@ async function bootstrap() {
     maxAge: 86400, // 24 hours
   });
 
-  await app.listen(process.env.PORT || 3000);
+  await app.listen(process.env.PORT || 3001); // Updated default port to match development setup
 }
 
 bootstrap().catch((error) => {
