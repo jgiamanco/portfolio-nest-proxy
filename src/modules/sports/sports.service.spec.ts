@@ -51,11 +51,28 @@ describe('SportsService', () => {
   describe('getGames', () => {
     const mockMLBResponse = [
       {
-        HomeTeam: 'Red Sox',
-        HomeTeamScore: 3,
-        AwayTeam: 'Yankees',
-        AwayTeamScore: 5,
-        Status: 'Final',
+        GameID: 74183,
+        Season: 2025,
+        SeasonType: 2,
+        Status: 'InProgress',
+        DateTime: '2025-03-16T13:05:00',
+        AwayTeam: 'PHI',
+        HomeTeam: 'BAL',
+        StadiumID: 49,
+        Channel: 'ESPN',
+        AwayTeamRuns: 2,
+        HomeTeamRuns: 0,
+        Inning: 6,
+        InningHalf: 'M',
+        InningDescription: 'Mid 6',
+        LastPlay: 'Scrambled',
+        Updated: '2025-03-16T14:48:12',
+        IsClosed: false,
+        DateTimeUTC: '2025-03-16T17:05:00',
+        GlobalGameID: 10074183,
+        NeutralVenue: false,
+        SeriesInfo: null,
+        Innings: [],
       },
     ];
 
@@ -75,25 +92,55 @@ describe('SportsService', () => {
 
     const mockNHLResponse = [
       {
-        HomeTeam: 'Rangers',
-        HomeTeamScore: 2,
-        AwayTeam: 'Bruins',
-        AwayTeamScore: 4,
-        Status: 'Final',
+        GameID: 23510,
+        Season: 2025,
+        SeasonType: 1,
+        Status: 'InProgress',
+        DateTime: '2025-03-16T13:00:00',
+        AwayTeam: 'VEG',
+        HomeTeam: 'DET',
+        StadiumID: 11,
+        Channel: 'TNT',
+        AwayTeamScore: 0,
+        HomeTeamScore: 3,
+        Period: '2',
+        TimeRemainingMinutes: 1,
+        TimeRemainingSeconds: 24,
+        LastPlay: 'End of 2nd Period',
+        Updated: '2025-03-16T14:53:02',
+        IsClosed: false,
+        DateTimeUTC: '2025-03-16T17:00:00',
+        GlobalGameID: 30023510,
+        NeutralVenue: false,
+        SeriesInfo: null,
+        Periods: [],
       },
     ];
 
     const mockNBAResponse = [
       {
-        competitions: [
-          {
-            competitors: [
-              { team: { name: 'Lakers' }, score: '120' },
-              { team: { name: 'Warriors' }, score: '115' },
-            ],
-            status: { type: { completed: true } },
-          },
-        ],
+        GameID: 21937,
+        Season: 2025,
+        SeasonType: 1,
+        Status: 'InProgress',
+        DateTime: '2025-03-16T13:00:00',
+        AwayTeam: 'PHI',
+        HomeTeam: 'DAL',
+        StadiumID: 25,
+        Channel: 'NBCS',
+        AwayTeamScore: 104,
+        HomeTeamScore: 91,
+        Quarter: '4',
+        TimeRemainingMinutes: 7,
+        TimeRemainingSeconds: 8,
+        LastPlay: 'Scrambled',
+        Updated: '2025-03-16T15:02:46',
+        IsClosed: false,
+        DateTimeUTC: '2025-03-16T17:00:00',
+        GlobalGameID: 20021937,
+        NeutralVenue: false,
+        SeriesInfo: null,
+        Quarters: [],
       },
     ];
 
@@ -106,14 +153,16 @@ describe('SportsService', () => {
 
       const result = await service.getGames('mlb');
       expect(result[0]).toMatchObject({
-        HomeTeam: 'Red Sox',
-        HomeTeamScore: 3,
-        AwayTeam: 'Yankees',
-        AwayTeamScore: 5,
-        Status: 'Final',
+        GameID: 74183,
+        DateTime: '2025-03-16T13:05:00',
+        Status: 'Mid 6',
+        AwayTeam: 'PHI',
+        HomeTeam: 'BAL',
+        AwayTeamScore: 2,
+        HomeTeamScore: 0,
+        Channel: 'ESPN',
+        StadiumDetails: 'Inning: Mid 6',
       });
-      expect(result[0].GameID).toBeDefined();
-      expect(result[0].DateTime).toBeDefined();
     });
 
     it('should return NFL games', async () => {
@@ -144,14 +193,16 @@ describe('SportsService', () => {
 
       const result = await service.getGames('nhl');
       expect(result[0]).toMatchObject({
-        HomeTeam: 'Rangers',
-        HomeTeamScore: 2,
-        AwayTeam: 'Bruins',
-        AwayTeamScore: 4,
-        Status: 'Final',
+        GameID: 23510,
+        DateTime: '2025-03-16T13:00:00',
+        Status: 'Period 2 - 1:24',
+        AwayTeam: 'VEG',
+        HomeTeam: 'DET',
+        AwayTeamScore: 0,
+        HomeTeamScore: 3,
+        Channel: 'TNT',
+        StadiumDetails: 'End of 2nd Period',
       });
-      expect(result[0].GameID).toBeDefined();
-      expect(result[0].DateTime).toBeDefined();
     });
 
     it('should return NBA games', async () => {
@@ -163,14 +214,16 @@ describe('SportsService', () => {
 
       const result = await service.getGames('nba');
       expect(result[0]).toMatchObject({
-        HomeTeam: 'Warriors',
-        HomeTeamScore: 115,
-        AwayTeam: 'Lakers',
-        AwayTeamScore: 120,
-        Status: 'Final',
+        GameID: 21937,
+        DateTime: '2025-03-16T13:00:00',
+        Status: 'Q4 - 7:08',
+        AwayTeam: 'PHI',
+        HomeTeam: 'DAL',
+        AwayTeamScore: 104,
+        HomeTeamScore: 91,
+        Channel: 'NBCS',
+        StadiumDetails: 'Scrambled',
       });
-      expect(result[0].GameID).toBeDefined();
-      expect(result[0].DateTime).toBeDefined();
     });
 
     it('should handle API errors', async () => {

@@ -6,8 +6,10 @@ import { AxiosError } from 'axios';
 import {
   SportType,
   GameData,
-  BaseGameData,
-  LeagueGameData,
+  MLBGameData,
+  NHLGameData,
+  NBAGameData,
+  NFLGameData,
 } from './sports.types';
 
 interface ErrorResponse {
@@ -59,59 +61,74 @@ export class SportsService {
   }
 
   private transformGameData(data: unknown[], sport: SportType): GameData[] {
-    console.log(data);
-    switch (sport) {
-      case 'mlb':
-      case 'nhl': {
-        return data.map((game) => {
-          const baseGame = game as BaseGameData;
-          return {
-            GameID: Date.now(), // Unique ID for each game
-            DateTime: new Date().toISOString(),
-            Status:
-              baseGame.Status ||
-              baseGame.status?.abstractGameState ||
-              'Scheduled',
-            AwayTeam:
-              baseGame.AwayTeam || baseGame.teams?.away?.team?.name || '',
-            HomeTeam:
-              baseGame.HomeTeam || baseGame.teams?.home?.team?.name || '',
-            AwayTeamScore:
-              baseGame.AwayTeamScore ||
-              baseGame.AwayTeamRuns ||
-              baseGame.teams?.away?.score ||
-              0,
-            HomeTeamScore:
-              baseGame.HomeTeamScore ||
-              baseGame.HomeTeamRuns ||
-              baseGame.teams?.home?.score ||
-              0,
-            Channel: baseGame.Channel || '', // Add if available in your data
-            StadiumDetails: baseGame.StadiumDetails || '', // Add if available in your data
-          };
-        });
-      }
-      case 'nfl':
-      case 'nba': {
-        return data.map((game) => {
-          const leagueGame = game as LeagueGameData;
-          const competitors = leagueGame.competitions?.[0]?.competitors || [];
-          const [awayTeam, homeTeam] = competitors;
-          const completed =
-            leagueGame.competitions?.[0]?.status?.type?.completed;
+    if (!Array.isArray(data) || data.length === 0) {
+      return [];
+    }
 
-          return {
-            GameID: Date.now(), // Unique ID for each game
-            DateTime: new Date().toISOString(),
-            Status: completed ? 'Final' : 'In Progress',
-            AwayTeam: awayTeam?.team?.name || '',
-            HomeTeam: homeTeam?.team?.name || '',
-            AwayTeamScore: Number(awayTeam?.score || 0),
-            HomeTeamScore: Number(homeTeam?.score || 0),
-            Channel: '', // Add if available in your data
-            StadiumDetails: '', // Add if available in your data
-          };
-        });
+    switch (sport) {
+      case 'mlb': {
+        return (data as MLBGameData[]).map((game) => ({
+          GameID: game.GameID,
+          DateTime: game.DateTime,
+          Status:
+            game.Status === 'InProgress'
+              ? `${game.InningDescription}`
+              : game.Status,
+          AwayTeam: game.AwayTeam,
+          HomeTeam: game.HomeTeam,
+          AwayTeamScore: game.AwayTeamRuns,
+          HomeTeamScore: game.HomeTeamRuns,
+          Channel: game.Channel,
+          StadiumDetails: `Inning: ${game.InningDescription}`,
+        }));
+      }
+      case 'nfl': {
+        return (data as NFLGameData[]).map((game) => ({
+          GameID: game.GlobalGameID,
+          DateTime: game.DateTime,
+          Status:
+            game.Status === 'InProgress'
+              ? `Q${game.Quarter} - ${game.TimeRemaining || ''}`
+              : game.QuarterDescription || game.Status,
+          AwayTeam: game.AwayTeam,
+          HomeTeam: game.HomeTeam,
+          AwayTeamScore: game.AwayScore,
+          HomeTeamScore: game.HomeScore,
+          Channel: game.Channel,
+          StadiumDetails: game.StadiumDetails?.Name,
+        }));
+      }
+      case 'nhl': {
+        return (data as NHLGameData[]).map((game) => ({
+          GameID: game.GameID,
+          DateTime: game.DateTime,
+          Status:
+            game.Status === 'InProgress'
+              ? `Period ${game.Period} - ${game.TimeRemainingMinutes}:${String(game.TimeRemainingSeconds).padStart(2, '0')}`
+              : game.Status,
+          AwayTeam: game.AwayTeam,
+          HomeTeam: game.HomeTeam,
+          AwayTeamScore: game.AwayTeamScore,
+          HomeTeamScore: game.HomeTeamScore,
+          Channel: game.Channel,
+          StadiumDetails: game.LastPlay || undefined,
+        }));
+      }
+      case 'nba': {
+        return (data as NBAGameData[]).map((game) => ({
+          GameID: game.GameID,
+          DateTime: game.DateTime,
+          Status:
+            game.Status === 'InProgress'
+              ? `Q${game.Quarter} - ${game.TimeRemainingMinutes}:${String(game.TimeRemainingSeconds).padStart(2, '0')}`
+              : game.Status,
+          AwayTeam: game.AwayTeam,
+          HomeTeam: game.HomeTeam,
+          AwayTeamScore: game.AwayTeamScore,
+          HomeTeamScore: game.HomeTeamScore,
+          Channel: game.Channel,
+          StadiumDetails: game.LastPlay,
+        }));
       }
       default:
         throw new Error('Invalid sport type');
