@@ -37,6 +37,28 @@ export interface BaseGameData {
   status?: {
     abstractGameState?: string;
   };
+  GameID?: number;
+  GameId?: number;
+  gameId?: number;
+  DateTime?: string;
+  GameDate?: string;
+  Date?: string;
+  dateTime?: string;
+  VenueTeam?: string;
+  VisitorTeam?: string;
+  LocalTeam?: string;
+  AwayScore?: number;
+  VenueTeamScore?: number;
+  Period?: string;
+  Inning?: string;
+  TimeRemainingMinutes?: number;
+  MinutesRemaining?: number;
+  TimeRemainingSeconds?: number;
+  SecondsRemaining?: number;
+  Channel?: string;
+  Broadcast?: string;
+  StadiumDetails?: string;
+  Venue?: string;
 }
 
 export interface LeagueGameData {

@@ -86,8 +86,8 @@ export class SportsService {
               baseGame.HomeTeamRuns ||
               baseGame.teams?.home?.score ||
               0,
-            Channel: '', // Add if available in your data
-            StadiumDetails: '', // Add if available in your data
+            Channel: baseGame.Channel || '', // Add if available in your data
+            StadiumDetails: baseGame.StadiumDetails || '', // Add if available in your data
           };
         });
       }
