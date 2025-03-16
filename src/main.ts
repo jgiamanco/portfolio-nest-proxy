@@ -13,8 +13,17 @@ async function bootstrap() {
       'https://portfolio-nest-proxy.vercel.app',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Origin',
+      'X-Requested-With',
+    ],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
+    credentials: false,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
     maxAge: 86400, // 24 hours
   });
 
