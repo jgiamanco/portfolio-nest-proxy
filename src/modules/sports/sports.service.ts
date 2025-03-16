@@ -79,7 +79,7 @@ export class SportsService {
           AwayTeamScore: game.AwayTeamRuns,
           HomeTeamScore: game.HomeTeamRuns,
           Channel: game.Channel,
-          StadiumDetails: `Inning: ${game.InningDescription}`,
+          StadiumDetails: `Inning: ${game.Inning}`,
         }));
       }
       case 'nfl': {
@@ -127,7 +127,7 @@ export class SportsService {
           AwayTeamScore: game.AwayTeamScore,
           HomeTeamScore: game.HomeTeamScore,
           Channel: game.Channel,
-          StadiumDetails: game.LastPlay,
+          StadiumDetails: '',
         }));
       }
       default:
