@@ -79,7 +79,10 @@ export class SportsService {
           AwayTeamScore: game.AwayTeamRuns,
           HomeTeamScore: game.HomeTeamRuns,
           Channel: game.Channel,
-          StadiumDetails: game.Inning !== null ? `Inning: ${game.Inning}` : '',
+          StadiumDetails:
+            typeof game.Inning === 'number'
+              ? `Inning: ${game.Inning}`
+              : 'Scheduled',
         }));
       }
       case 'nfl': {
