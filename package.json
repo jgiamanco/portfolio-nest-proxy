@@ -9,6 +9,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "vercel-build": "nest build",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",

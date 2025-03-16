@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "builds": [
+    {
+      "src": "dist/main.js",
+      "use": "@vercel/node@3",
+      "config": {
+        "nodeVersion": "20.16.0"
+      }
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",
