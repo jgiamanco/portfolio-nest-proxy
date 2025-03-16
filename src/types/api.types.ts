@@ -112,6 +112,7 @@ export interface OpenWeatherResponse {
   wind: {
     speed: number;
   };
+  timezone: number;
 }
 
 export interface WeatherData {
@@ -122,6 +123,7 @@ export interface WeatherData {
   humidity: number;
   description: string;
   windSpeed: number;
+  timezone: number;
 }
 
 // Stock API types

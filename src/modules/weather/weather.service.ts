@@ -46,6 +46,7 @@ export class WeatherService {
   }
 
   private mapWeatherResponse(data: OpenWeatherResponse): WeatherData {
+    console.log('weather data:', data);
     if (!data || !data.main || !data.weather || data.weather.length === 0) {
       throw new BadRequestException('Invalid weather data received from API');
     }
@@ -58,6 +59,7 @@ export class WeatherService {
       humidity: data.main.humidity,
       description: data.weather[0].description,
       windSpeed: data.wind.speed,
+      timezone: data.timezone,
     };
   }
 
