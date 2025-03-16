@@ -64,6 +64,7 @@ export class SportsService {
       case 'nhl': {
         return data.map((game) => {
           const baseGame = game as BaseGameData;
+          console.log(baseGame);
           return {
             GameID: Date.now(), // Unique ID for each game
             DateTime: new Date().toISOString(),
