@@ -1,8 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { Logger, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'debug', 'log', 'verbose'],
+  });
+
+  // Enable validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
 
   // Enable CORS with updated origins
   app.enableCors({
@@ -27,7 +39,12 @@ async function bootstrap() {
     maxAge: 86400, // 24 hours
   });
 
-  await app.listen(process.env.PORT || 3001); // Updated default port to match development setup
+  const port = process.env.PORT || 3001;
+  await app.listen(port);
+  logger.log(`Application is running on: http://localhost:${port}`);
+  logger.log(
+    `OpenAI endpoint should be available at: http://localhost:${port}/api/chatbot/message`,
+  );
 }
 
 bootstrap().catch((error) => {

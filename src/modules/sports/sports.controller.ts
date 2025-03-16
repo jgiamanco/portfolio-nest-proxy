@@ -12,6 +12,12 @@ export class SportsController {
   async getGames(
     @Param('sport') sport: SportType,
   ): Promise<SportsGameResponse[]> {
-    return this.sportsService.getGames(sport);
+    const games = await this.sportsService.getGames(sport);
+    return games.map((game) => ({
+      ...game,
+      AwayTeamScore: game.AwayTeamScore ?? undefined,
+      HomeTeamScore: game.HomeTeamScore ?? undefined,
+      Channel: game.Channel ?? undefined,
+    }));
   }
 }
