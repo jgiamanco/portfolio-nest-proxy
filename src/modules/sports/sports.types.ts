@@ -1,11 +1,15 @@
 export type SportType = 'mlb' | 'nfl' | 'nhl' | 'nba';
 
 export interface GameData {
-  homeTeam: string;
-  homeScore: number;
-  awayTeam: string;
-  awayScore: number;
-  status: string;
+  GameID: number;
+  DateTime: string;
+  Status: string;
+  AwayTeam: string;
+  HomeTeam: string;
+  AwayTeamScore: number;
+  HomeTeamScore: number;
+  Channel?: string;
+  StadiumDetails?: string;
 }
 
 export interface BaseGameData {

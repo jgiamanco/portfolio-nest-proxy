@@ -105,15 +105,15 @@ describe('SportsService', () => {
       );
 
       const result = await service.getGames('mlb');
-      expect(result).toEqual([
-        {
-          homeTeam: 'Red Sox',
-          homeScore: 3,
-          awayTeam: 'Yankees',
-          awayScore: 5,
-          status: 'Final',
-        },
-      ]);
+      expect(result[0]).toMatchObject({
+        HomeTeam: 'Red Sox',
+        HomeTeamScore: 3,
+        AwayTeam: 'Yankees',
+        AwayTeamScore: 5,
+        Status: 'Final',
+      });
+      expect(result[0].GameID).toBeDefined();
+      expect(result[0].DateTime).toBeDefined();
     });
 
     it('should return NFL games', async () => {
@@ -124,15 +124,15 @@ describe('SportsService', () => {
       );
 
       const result = await service.getGames('nfl');
-      expect(result).toEqual([
-        {
-          homeTeam: 'Raiders',
-          homeScore: 17,
-          awayTeam: 'Chiefs',
-          awayScore: 24,
-          status: 'Final',
-        },
-      ]);
+      expect(result[0]).toMatchObject({
+        HomeTeam: 'Raiders',
+        HomeTeamScore: 17,
+        AwayTeam: 'Chiefs',
+        AwayTeamScore: 24,
+        Status: 'Final',
+      });
+      expect(result[0].GameID).toBeDefined();
+      expect(result[0].DateTime).toBeDefined();
     });
 
     it('should return NHL games', async () => {
@@ -143,15 +143,15 @@ describe('SportsService', () => {
       );
 
       const result = await service.getGames('nhl');
-      expect(result).toEqual([
-        {
-          homeTeam: 'Rangers',
-          homeScore: 2,
-          awayTeam: 'Bruins',
-          awayScore: 4,
-          status: 'Final',
-        },
-      ]);
+      expect(result[0]).toMatchObject({
+        HomeTeam: 'Rangers',
+        HomeTeamScore: 2,
+        AwayTeam: 'Bruins',
+        AwayTeamScore: 4,
+        Status: 'Final',
+      });
+      expect(result[0].GameID).toBeDefined();
+      expect(result[0].DateTime).toBeDefined();
     });
 
     it('should return NBA games', async () => {
@@ -162,15 +162,15 @@ describe('SportsService', () => {
       );
 
       const result = await service.getGames('nba');
-      expect(result).toEqual([
-        {
-          homeTeam: 'Warriors',
-          homeScore: 115,
-          awayTeam: 'Lakers',
-          awayScore: 120,
-          status: 'Final',
-        },
-      ]);
+      expect(result[0]).toMatchObject({
+        HomeTeam: 'Warriors',
+        HomeTeamScore: 115,
+        AwayTeam: 'Lakers',
+        AwayTeamScore: 120,
+        Status: 'Final',
+      });
+      expect(result[0].GameID).toBeDefined();
+      expect(result[0].DateTime).toBeDefined();
     });
 
     it('should handle API errors', async () => {
@@ -184,6 +184,17 @@ describe('SportsService', () => {
       );
 
       await expect(service.getGames('mlb')).rejects.toThrow(HttpException);
+    });
+
+    it('should handle empty response', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: [],
+        }),
+      );
+
+      const result = await service.getGames('mlb');
+      expect(result).toEqual([]);
     });
 
     it('should throw error for invalid sport type', async () => {

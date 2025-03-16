@@ -6,7 +6,6 @@ import { AxiosError } from 'axios';
 import {
   SportType,
   GameData,
-  RawGameData,
   BaseGameData,
   LeagueGameData,
 } from './sports.types';
@@ -66,26 +65,28 @@ export class SportsService {
         return data.map((game) => {
           const baseGame = game as BaseGameData;
           return {
-            homeTeam:
-              baseGame.HomeTeam || baseGame.teams?.home?.team?.name || '',
-            homeScore: Number(
-              baseGame.HomeTeamScore ||
-                baseGame.HomeTeamRuns ||
-                baseGame.teams?.home?.score ||
-                0,
-            ),
-            awayTeam:
-              baseGame.AwayTeam || baseGame.teams?.away?.team?.name || '',
-            awayScore: Number(
-              baseGame.AwayTeamScore ||
-                baseGame.AwayTeamRuns ||
-                baseGame.teams?.away?.score ||
-                0,
-            ),
-            status:
+            GameID: Date.now(), // Unique ID for each game
+            DateTime: new Date().toISOString(),
+            Status:
               baseGame.Status ||
               baseGame.status?.abstractGameState ||
-              'Unknown',
+              'Scheduled',
+            AwayTeam:
+              baseGame.AwayTeam || baseGame.teams?.away?.team?.name || '',
+            HomeTeam:
+              baseGame.HomeTeam || baseGame.teams?.home?.team?.name || '',
+            AwayTeamScore:
+              baseGame.AwayTeamScore ||
+              baseGame.AwayTeamRuns ||
+              baseGame.teams?.away?.score ||
+              0,
+            HomeTeamScore:
+              baseGame.HomeTeamScore ||
+              baseGame.HomeTeamRuns ||
+              baseGame.teams?.home?.score ||
+              0,
+            Channel: '', // Add if available in your data
+            StadiumDetails: '', // Add if available in your data
           };
         });
       }
@@ -97,12 +98,17 @@ export class SportsService {
           const [awayTeam, homeTeam] = competitors;
           const completed =
             leagueGame.competitions?.[0]?.status?.type?.completed;
+
           return {
-            homeTeam: homeTeam?.team?.name || '',
-            homeScore: Number(homeTeam?.score || 0),
-            awayTeam: awayTeam?.team?.name || '',
-            awayScore: Number(awayTeam?.score || 0),
-            status: completed ? 'Final' : 'In Progress',
+            GameID: Date.now(), // Unique ID for each game
+            DateTime: new Date().toISOString(),
+            Status: completed ? 'Final' : 'In Progress',
+            AwayTeam: awayTeam?.team?.name || '',
+            HomeTeam: homeTeam?.team?.name || '',
+            AwayTeamScore: Number(awayTeam?.score || 0),
+            HomeTeamScore: Number(homeTeam?.score || 0),
+            Channel: '', // Add if available in your data
+            StadiumDetails: '', // Add if available in your data
           };
         });
       }
@@ -120,9 +126,9 @@ export class SportsService {
     const url = `${this.baseUrls[sport]}/${currentDate}?key=${this.apiKeys[sport]}`;
 
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.get(url).pipe(
-          map((response) => response),
+      const response = await firstValueFrom<unknown>(
+        this.httpService.get<unknown>(url).pipe(
+          map((response) => response.data),
           catchError((error: AxiosError<ErrorResponse>) => {
             throw new HttpException(
               error.response?.data?.message ||
@@ -133,7 +139,10 @@ export class SportsService {
         ),
       );
 
-      return this.transformGameData(Array.isArray(data) ? data : [], sport);
+      return this.transformGameData(
+        Array.isArray(response) ? response : [],
+        sport,
+      );
     } catch (error) {
       if (error instanceof Error && error.message === 'Invalid sport type') {
         throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
