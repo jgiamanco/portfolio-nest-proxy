@@ -3,9 +3,10 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
   // Enable CORS
   app.enableCors({
-    origin: true,
+    origin: ['http://localhost:3000', 'https://jacobgiamanco.vercel.app'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -15,7 +16,11 @@ async function bootstrap() {
   console.log(`Application is running on: http://localhost:${port}`);
 }
 
-bootstrap().catch((error) => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
-});
+if (require.main === module) {
+  bootstrap().catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
+}
+
+export default bootstrap;
