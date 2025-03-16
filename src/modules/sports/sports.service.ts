@@ -59,12 +59,12 @@ export class SportsService {
   }
 
   private transformGameData(data: unknown[], sport: SportType): GameData[] {
+    console.log(data);
     switch (sport) {
       case 'mlb':
       case 'nhl': {
         return data.map((game) => {
           const baseGame = game as BaseGameData;
-          console.log(baseGame);
           return {
             GameID: Date.now(), // Unique ID for each game
             DateTime: new Date().toISOString(),
