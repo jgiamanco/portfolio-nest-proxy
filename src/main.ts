@@ -3,16 +3,23 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // Enable CORS
+
+  // Enable CORS with updated origins
   app.enableCors({
     origin: [
       'http://localhost:3000',
       'http://localhost:8080',
       'https://jacobgiamanco.vercel.app',
+      'https://portfolio-nest-proxy.vercel.app',
     ],
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     credentials: true,
+    maxAge: 86400, // 24 hours
   });
+
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
 
   await app.listen(process.env.PORT || 3000);
 }

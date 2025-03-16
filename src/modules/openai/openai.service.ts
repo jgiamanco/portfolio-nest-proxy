@@ -16,6 +16,9 @@ export class OpenAIService {
   private readonly apiKey: string;
   private readonly assistantId = 'asst_H6bV1Mn6VCb2OuplombtzW58';
   private readonly baseUrl = 'https://api.openai.com/v1';
+  private readonly timeout = 60000; // 60 seconds timeout
+  private readonly maxRetries = 3;
+  private readonly retryDelay = 1000; // 1 second
 
   constructor(
     private readonly httpService: HttpService,
@@ -44,6 +47,30 @@ export class OpenAIService {
       error.response?.data?.data?.error ||
       'Failed to process OpenAI request'
     );
+  }
+
+  private async retryOperation<T>(operation: () => Promise<T>): Promise<T> {
+    let lastError: Error;
+    for (let i = 0; i < this.maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        if (i < this.maxRetries - 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.retryDelay * (i + 1)),
+          );
+        }
+      }
+    }
+    throw lastError!;
+  }
+
+  private getRequestConfig() {
+    return {
+      headers: this.getHeaders(),
+      timeout: this.timeout,
+    };
   }
 
   async createThread(): Promise<ThreadResponse> {
@@ -216,74 +243,14 @@ export class OpenAIService {
 
   async sendMessage(message: string): Promise<string> {
     try {
-      // Create a thread
-      const threadResponse = await firstValueFrom(
-        this.httpService
-          .post<ThreadResponse>(
-            `${this.baseUrl}/threads`,
-            { metadata: {} },
-            { headers: this.getHeaders() },
-          )
-          .pipe(
-            map((response) => response.data),
-            catchError((error: AxiosError<ErrorResponse>) => {
-              throw new HttpException(
-                this.getErrorMessage(error),
-                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
-      );
-
-      // Add message to thread
-      await firstValueFrom(
-        this.httpService
-          .post(
-            `${this.baseUrl}/threads/${threadResponse.id}/messages`,
-            { role: 'user', content: message },
-            { headers: this.getHeaders() },
-          )
-          .pipe(
-            catchError((error: AxiosError<ErrorResponse>) => {
-              throw new HttpException(
-                this.getErrorMessage(error),
-                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
-      );
-
-      // Create a run
-      const runResponse = await firstValueFrom(
-        this.httpService
-          .post<RunResponse>(
-            `${this.baseUrl}/threads/${threadResponse.id}/runs`,
-            {
-              assistant_id: this.assistantId,
-              model: 'gpt-4-turbo-preview',
-            },
-            { headers: this.getHeaders() },
-          )
-          .pipe(
-            map((response) => response.data),
-            catchError((error: AxiosError<ErrorResponse>) => {
-              throw new HttpException(
-                this.getErrorMessage(error),
-                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
-      );
-
-      // Poll for completion
-      let runStatus = runResponse.status;
-      while (runStatus === 'queued' || runStatus === 'in_progress') {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const statusResponse = await firstValueFrom(
+      // Create a thread with retry
+      const threadResponse = await this.retryOperation(() =>
+        firstValueFrom(
           this.httpService
-            .get<RunResponse>(
-              `${this.baseUrl}/threads/${threadResponse.id}/runs/${runResponse.id}`,
-              { headers: this.getHeaders() },
+            .post<ThreadResponse>(
+              `${this.baseUrl}/threads`,
+              { metadata: {} },
+              this.getRequestConfig(),
             )
             .pipe(
               map((response) => response.data),
@@ -294,30 +261,112 @@ export class OpenAIService {
                 );
               }),
             ),
+        ),
+      );
+
+      // Add message to thread with retry
+      await this.retryOperation(() =>
+        firstValueFrom(
+          this.httpService
+            .post(
+              `${this.baseUrl}/threads/${threadResponse.id}/messages`,
+              { role: 'user', content: message },
+              this.getRequestConfig(),
+            )
+            .pipe(
+              catchError((error: AxiosError<ErrorResponse>) => {
+                throw new HttpException(
+                  this.getErrorMessage(error),
+                  error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                );
+              }),
+            ),
+        ),
+      );
+
+      // Create a run with retry
+      const runResponse = await this.retryOperation(() =>
+        firstValueFrom(
+          this.httpService
+            .post<RunResponse>(
+              `${this.baseUrl}/threads/${threadResponse.id}/runs`,
+              {
+                assistant_id: this.assistantId,
+                model: 'gpt-4-turbo-preview',
+              },
+              this.getRequestConfig(),
+            )
+            .pipe(
+              map((response) => response.data),
+              catchError((error: AxiosError<ErrorResponse>) => {
+                throw new HttpException(
+                  this.getErrorMessage(error),
+                  error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                );
+              }),
+            ),
+        ),
+      );
+
+      // Poll for completion with timeout
+      let runStatus = runResponse.status;
+      let attempts = 0;
+      const maxAttempts = 30; // 30 seconds maximum wait time
+
+      while (
+        (runStatus === 'queued' || runStatus === 'in_progress') &&
+        attempts < maxAttempts
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        attempts++;
+
+        const statusResponse = await this.retryOperation(() =>
+          firstValueFrom(
+            this.httpService
+              .get<RunResponse>(
+                `${this.baseUrl}/threads/${threadResponse.id}/runs/${runResponse.id}`,
+                this.getRequestConfig(),
+              )
+              .pipe(
+                map((response) => response.data),
+                catchError((error: AxiosError<ErrorResponse>) => {
+                  throw new HttpException(
+                    this.getErrorMessage(error),
+                    error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                  );
+                }),
+              ),
+          ),
         );
+
         runStatus = statusResponse.status;
       }
 
       if (runStatus !== 'completed') {
-        throw new Error(`Run failed with status: ${runStatus}`);
+        throw new HttpException(
+          'Request timed out or failed',
+          HttpStatus.GATEWAY_TIMEOUT,
+        );
       }
 
-      // Get messages
-      const messagesResponse = await firstValueFrom(
-        this.httpService
-          .get<MessagesResponse>(
-            `${this.baseUrl}/threads/${threadResponse.id}/messages`,
-            { headers: this.getHeaders() },
-          )
-          .pipe(
-            map((response) => response.data),
-            catchError((error: AxiosError<ErrorResponse>) => {
-              throw new HttpException(
-                this.getErrorMessage(error),
-                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
+      // Get messages with retry
+      const messagesResponse = await this.retryOperation(() =>
+        firstValueFrom(
+          this.httpService
+            .get<MessagesResponse>(
+              `${this.baseUrl}/threads/${threadResponse.id}/messages`,
+              this.getRequestConfig(),
+            )
+            .pipe(
+              map((response) => response.data),
+              catchError((error: AxiosError<ErrorResponse>) => {
+                throw new HttpException(
+                  this.getErrorMessage(error),
+                  error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                );
+              }),
+            ),
+        ),
       );
 
       const assistantMessage = messagesResponse.data.find(
