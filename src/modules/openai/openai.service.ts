@@ -18,8 +18,8 @@ export class OpenAIService {
   private readonly assistantId = 'asst_H6bV1Mn6VCb2OuplombtzW58';
   private readonly baseUrl = 'https://api.openai.com/v1';
   private readonly timeout = 30000; // 30 seconds timeout
-  private readonly maxRetries = 2;
-  private readonly retryDelay = 1000; // 1 second
+  private readonly maxRetries = 3;
+  private readonly retryDelay = 2000; // 2 seconds
 
   constructor(
     private readonly httpService: HttpService,
@@ -50,18 +50,26 @@ export class OpenAIService {
     );
   }
 
-  private async retryOperation<T>(operation: () => Promise<T>): Promise<T> {
+  private async retryOperation<T>(
+    operation: () => Promise<T>,
+    operationName: string,
+  ): Promise<T> {
     let lastError: Error;
     for (let i = 0; i < this.maxRetries; i++) {
       try {
+        this.logger.debug(
+          `Attempting ${operationName} (attempt ${i + 1}/${this.maxRetries})`,
+        );
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        this.logger.warn(`Attempt ${i + 1} failed: ${error.message}`);
+        this.logger.warn(
+          `${operationName} attempt ${i + 1} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
         if (i < this.maxRetries - 1) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, this.retryDelay * (i + 1)),
-          );
+          const delay = this.retryDelay * (i + 1);
+          this.logger.debug(`Waiting ${delay}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
@@ -245,112 +253,25 @@ export class OpenAIService {
 
   async sendMessage(message: string): Promise<string> {
     this.logger.log('Starting to process message');
+    let threadId: string | undefined;
+
     try {
       // Create a thread with retry
       this.logger.log('Creating thread...');
-      const threadResponse = await this.retryOperation(() =>
-        firstValueFrom(
-          this.httpService
-            .post<ThreadResponse>(
-              `${this.baseUrl}/threads`,
-              { metadata: {} },
-              this.getRequestConfig(),
-            )
-            .pipe(
-              map((response) => response.data),
-              catchError((error: AxiosError<ErrorResponse>) => {
-                this.logger.error(
-                  'Failed to create thread:',
-                  this.getErrorMessage(error),
-                );
-                throw new HttpException(
-                  this.getErrorMessage(error),
-                  error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-                );
-              }),
-            ),
-        ),
-      );
-
-      // Add message to thread with retry
-      this.logger.log('Adding message to thread...');
-      await this.retryOperation(() =>
-        firstValueFrom(
-          this.httpService
-            .post(
-              `${this.baseUrl}/threads/${threadResponse.id}/messages`,
-              { role: 'user', content: message },
-              this.getRequestConfig(),
-            )
-            .pipe(
-              catchError((error: AxiosError<ErrorResponse>) => {
-                this.logger.error(
-                  'Failed to add message:',
-                  this.getErrorMessage(error),
-                );
-                throw new HttpException(
-                  this.getErrorMessage(error),
-                  error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-                );
-              }),
-            ),
-        ),
-      );
-
-      // Create a run with retry
-      this.logger.log('Creating run...');
-      const runResponse = await this.retryOperation(() =>
-        firstValueFrom(
-          this.httpService
-            .post<RunResponse>(
-              `${this.baseUrl}/threads/${threadResponse.id}/runs`,
-              {
-                assistant_id: this.assistantId,
-                model: 'gpt-4-turbo-preview',
-              },
-              this.getRequestConfig(),
-            )
-            .pipe(
-              map((response) => response.data),
-              catchError((error: AxiosError<ErrorResponse>) => {
-                this.logger.error(
-                  'Failed to create run:',
-                  this.getErrorMessage(error),
-                );
-                throw new HttpException(
-                  this.getErrorMessage(error),
-                  error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-                );
-              }),
-            ),
-        ),
-      );
-
-      // Poll for completion with timeout
-      this.logger.log('Polling for completion...');
-      let runStatus = runResponse.status;
-      let attempts = 0;
-      const maxAttempts = 15; // 15 seconds maximum wait time
-
-      while (
-        (runStatus === 'queued' || runStatus === 'in_progress') &&
-        attempts < maxAttempts
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        attempts++;
-
-        const statusResponse = await this.retryOperation(() =>
+      const threadResponse = await this.retryOperation(
+        () =>
           firstValueFrom(
             this.httpService
-              .get<RunResponse>(
-                `${this.baseUrl}/threads/${threadResponse.id}/runs/${runResponse.id}`,
+              .post<ThreadResponse>(
+                `${this.baseUrl}/threads`,
+                { metadata: {} },
                 this.getRequestConfig(),
               )
               .pipe(
                 map((response) => response.data),
                 catchError((error: AxiosError<ErrorResponse>) => {
                   this.logger.error(
-                    'Failed to get run status:',
+                    'Failed to create thread:',
                     this.getErrorMessage(error),
                   );
                   throw new HttpException(
@@ -360,6 +281,107 @@ export class OpenAIService {
                 }),
               ),
           ),
+        'create thread',
+      );
+
+      threadId = threadResponse.id;
+      this.logger.debug(`Created thread with ID: ${threadId}`);
+
+      // Add message to thread with retry
+      this.logger.log('Adding message to thread...');
+      await this.retryOperation(
+        () =>
+          firstValueFrom(
+            this.httpService
+              .post(
+                `${this.baseUrl}/threads/${threadId}/messages`,
+                { role: 'user', content: message },
+                this.getRequestConfig(),
+              )
+              .pipe(
+                catchError((error: AxiosError<ErrorResponse>) => {
+                  this.logger.error(
+                    'Failed to add message:',
+                    this.getErrorMessage(error),
+                  );
+                  throw new HttpException(
+                    this.getErrorMessage(error),
+                    error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                  );
+                }),
+              ),
+          ),
+        'add message',
+      );
+
+      // Create a run with retry
+      this.logger.log('Creating run...');
+      const runResponse = await this.retryOperation(
+        () =>
+          firstValueFrom(
+            this.httpService
+              .post<RunResponse>(
+                `${this.baseUrl}/threads/${threadId}/runs`,
+                {
+                  assistant_id: this.assistantId,
+                  model: 'gpt-4-turbo-preview',
+                },
+                this.getRequestConfig(),
+              )
+              .pipe(
+                map((response) => response.data),
+                catchError((error: AxiosError<ErrorResponse>) => {
+                  this.logger.error(
+                    'Failed to create run:',
+                    this.getErrorMessage(error),
+                  );
+                  throw new HttpException(
+                    this.getErrorMessage(error),
+                    error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                  );
+                }),
+              ),
+          ),
+        'create run',
+      );
+
+      // Poll for completion with timeout
+      this.logger.log('Polling for completion...');
+      let runStatus = runResponse.status;
+      let attempts = 0;
+      const maxAttempts = 10; // 10 seconds maximum wait time
+
+      while (
+        (runStatus === 'queued' || runStatus === 'in_progress') &&
+        attempts < maxAttempts
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        attempts++;
+
+        const statusResponse = await this.retryOperation(
+          () =>
+            firstValueFrom(
+              this.httpService
+                .get<RunResponse>(
+                  `${this.baseUrl}/threads/${threadId}/runs/${runResponse.id}`,
+                  this.getRequestConfig(),
+                )
+                .pipe(
+                  map((response) => response.data),
+                  catchError((error: AxiosError<ErrorResponse>) => {
+                    this.logger.error(
+                      'Failed to get run status:',
+                      this.getErrorMessage(error),
+                    );
+                    throw new HttpException(
+                      this.getErrorMessage(error),
+                      error.response?.status ||
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                    );
+                  }),
+                ),
+            ),
+          'get run status',
         );
 
         runStatus = statusResponse.status;
@@ -378,27 +400,29 @@ export class OpenAIService {
 
       // Get messages with retry
       this.logger.log('Getting messages...');
-      const messagesResponse = await this.retryOperation(() =>
-        firstValueFrom(
-          this.httpService
-            .get<MessagesResponse>(
-              `${this.baseUrl}/threads/${threadResponse.id}/messages`,
-              this.getRequestConfig(),
-            )
-            .pipe(
-              map((response) => response.data),
-              catchError((error: AxiosError<ErrorResponse>) => {
-                this.logger.error(
-                  'Failed to get messages:',
-                  this.getErrorMessage(error),
-                );
-                throw new HttpException(
-                  this.getErrorMessage(error),
-                  error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-                );
-              }),
-            ),
-        ),
+      const messagesResponse = await this.retryOperation(
+        () =>
+          firstValueFrom(
+            this.httpService
+              .get<MessagesResponse>(
+                `${this.baseUrl}/threads/${threadId}/messages`,
+                this.getRequestConfig(),
+              )
+              .pipe(
+                map((response) => response.data),
+                catchError((error: AxiosError<ErrorResponse>) => {
+                  this.logger.error(
+                    'Failed to get messages:',
+                    this.getErrorMessage(error),
+                  );
+                  throw new HttpException(
+                    this.getErrorMessage(error),
+                    error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                  );
+                }),
+              ),
+          ),
+        'get messages',
       );
 
       const assistantMessage = messagesResponse.data.find(
@@ -413,7 +437,10 @@ export class OpenAIService {
       this.logger.log('Successfully processed message');
       return assistantMessage.content[0].text.value;
     } catch (error) {
-      this.logger.error('Error in sendMessage:', error.message);
+      this.logger.error(
+        'Error in sendMessage:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       if (error instanceof HttpException) {
         throw error;
       }
