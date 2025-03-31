@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { catchError, firstValueFrom, map } from 'rxjs';
@@ -13,11 +13,12 @@ import {
 
 @Injectable()
 export class OpenAIService {
+  private readonly logger = new Logger(OpenAIService.name);
   private readonly apiKey: string;
   private readonly assistantId = 'asst_H6bV1Mn6VCb2OuplombtzW58';
   private readonly baseUrl = 'https://api.openai.com/v1';
-  private readonly timeout = 60000; // 60 seconds timeout
-  private readonly maxRetries = 3;
+  private readonly timeout = 30000; // 30 seconds timeout
+  private readonly maxRetries = 2;
   private readonly retryDelay = 1000; // 1 second
 
   constructor(
@@ -56,6 +57,7 @@ export class OpenAIService {
         return await operation();
       } catch (error) {
         lastError = error as Error;
+        this.logger.warn(`Attempt ${i + 1} failed: ${error.message}`);
         if (i < this.maxRetries - 1) {
           await new Promise((resolve) =>
             setTimeout(resolve, this.retryDelay * (i + 1)),
@@ -242,8 +244,10 @@ export class OpenAIService {
   }
 
   async sendMessage(message: string): Promise<string> {
+    this.logger.log('Starting to process message');
     try {
       // Create a thread with retry
+      this.logger.log('Creating thread...');
       const threadResponse = await this.retryOperation(() =>
         firstValueFrom(
           this.httpService
@@ -255,6 +259,10 @@ export class OpenAIService {
             .pipe(
               map((response) => response.data),
               catchError((error: AxiosError<ErrorResponse>) => {
+                this.logger.error(
+                  'Failed to create thread:',
+                  this.getErrorMessage(error),
+                );
                 throw new HttpException(
                   this.getErrorMessage(error),
                   error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -265,6 +273,7 @@ export class OpenAIService {
       );
 
       // Add message to thread with retry
+      this.logger.log('Adding message to thread...');
       await this.retryOperation(() =>
         firstValueFrom(
           this.httpService
@@ -275,6 +284,10 @@ export class OpenAIService {
             )
             .pipe(
               catchError((error: AxiosError<ErrorResponse>) => {
+                this.logger.error(
+                  'Failed to add message:',
+                  this.getErrorMessage(error),
+                );
                 throw new HttpException(
                   this.getErrorMessage(error),
                   error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -285,6 +298,7 @@ export class OpenAIService {
       );
 
       // Create a run with retry
+      this.logger.log('Creating run...');
       const runResponse = await this.retryOperation(() =>
         firstValueFrom(
           this.httpService
@@ -299,6 +313,10 @@ export class OpenAIService {
             .pipe(
               map((response) => response.data),
               catchError((error: AxiosError<ErrorResponse>) => {
+                this.logger.error(
+                  'Failed to create run:',
+                  this.getErrorMessage(error),
+                );
                 throw new HttpException(
                   this.getErrorMessage(error),
                   error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -309,9 +327,10 @@ export class OpenAIService {
       );
 
       // Poll for completion with timeout
+      this.logger.log('Polling for completion...');
       let runStatus = runResponse.status;
       let attempts = 0;
-      const maxAttempts = 30; // 30 seconds maximum wait time
+      const maxAttempts = 15; // 15 seconds maximum wait time
 
       while (
         (runStatus === 'queued' || runStatus === 'in_progress') &&
@@ -330,6 +349,10 @@ export class OpenAIService {
               .pipe(
                 map((response) => response.data),
                 catchError((error: AxiosError<ErrorResponse>) => {
+                  this.logger.error(
+                    'Failed to get run status:',
+                    this.getErrorMessage(error),
+                  );
                   throw new HttpException(
                     this.getErrorMessage(error),
                     error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -340,9 +363,13 @@ export class OpenAIService {
         );
 
         runStatus = statusResponse.status;
+        this.logger.debug(`Run status: ${runStatus}`);
       }
 
       if (runStatus !== 'completed') {
+        this.logger.error(
+          `Run failed or timed out. Final status: ${runStatus}`,
+        );
         throw new HttpException(
           'Request timed out or failed',
           HttpStatus.GATEWAY_TIMEOUT,
@@ -350,6 +377,7 @@ export class OpenAIService {
       }
 
       // Get messages with retry
+      this.logger.log('Getting messages...');
       const messagesResponse = await this.retryOperation(() =>
         firstValueFrom(
           this.httpService
@@ -360,6 +388,10 @@ export class OpenAIService {
             .pipe(
               map((response) => response.data),
               catchError((error: AxiosError<ErrorResponse>) => {
+                this.logger.error(
+                  'Failed to get messages:',
+                  this.getErrorMessage(error),
+                );
                 throw new HttpException(
                   this.getErrorMessage(error),
                   error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -374,11 +406,14 @@ export class OpenAIService {
       );
 
       if (!assistantMessage?.content[0]?.text?.value) {
+        this.logger.error('No response from assistant');
         throw new Error('No response from assistant');
       }
 
+      this.logger.log('Successfully processed message');
       return assistantMessage.content[0].text.value;
     } catch (error) {
+      this.logger.error('Error in sendMessage:', error.message);
       if (error instanceof HttpException) {
         throw error;
       }
