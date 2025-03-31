@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  console.log('Starting server...');
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS with updated origins
@@ -27,7 +28,23 @@ async function bootstrap() {
     maxAge: 86400, // 24 hours
   });
 
-  await app.listen(process.env.PORT || 3001); // Updated default port to match development setup
+  // Add global prefix for all routes
+  app.setGlobalPrefix('api');
+
+  const port = process.env.PORT || 3001;
+  await app.listen(port);
+  console.log(`Server is running on port ${port}`);
+  console.log('Available routes:');
+  const server = app.getHttpServer();
+  const router = server._events.request._router;
+  console.log(
+    router.stack
+      .filter((layer) => layer.route)
+      .map((layer) => ({
+        path: layer.route?.path,
+        method: layer.route?.stack[0].method,
+      })),
+  );
 }
 
 bootstrap().catch((error) => {
