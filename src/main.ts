@@ -9,13 +9,17 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS with updated origins
+  const allowedOrigins = [
+    'http://localhost:8080', // Frontend development
+    'http://localhost:3001', // Backend development
+    'https://jacobgiamanco.vercel.app', // Frontend production
+    'https://portfolio-nest-proxy.vercel.app', // Backend production
+  ];
+
+  console.log('Configuring CORS with origins:', allowedOrigins);
+
   app.enableCors({
-    origin: [
-      'http://localhost:8080', // Frontend development
-      'http://localhost:3001', // Backend development
-      'https://jacobgiamanco.vercel.app', // Frontend production
-      'https://portfolio-nest-proxy.vercel.app', // Backend production
-    ],
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     allowedHeaders: [
       'Content-Type',
