@@ -20,7 +20,8 @@ export class OpenAIService {
   private readonly timeout = 30000; // 30 seconds timeout
   private readonly maxRetries = 3;
   private readonly retryDelay = 2000; // 2 seconds
-  private readonly pollingInterval = 500; // 500ms polling interval
+  private readonly initialPollingInterval = 200; // 200ms initial polling interval
+  private readonly maxPollingInterval = 2000; // 2s maximum polling interval
   private readonly maxPollingTime = 45000; // 45 seconds maximum polling time
 
   constructor(
@@ -83,6 +84,15 @@ export class OpenAIService {
       headers: this.getHeaders(),
       timeout: this.timeout,
     };
+  }
+
+  private calculatePollingInterval(elapsedTime: number): number {
+    // Start with fast polling (200ms) and gradually increase to 2s
+    const interval = Math.min(
+      this.initialPollingInterval * Math.pow(1.5, elapsedTime / 5000),
+      this.maxPollingInterval,
+    );
+    return Math.round(interval);
   }
 
   async createThread(): Promise<ThreadResponse> {
@@ -166,7 +176,7 @@ export class OpenAIService {
             url,
             {
               assistant_id: this.assistantId,
-              model: 'gpt-4-turbo-preview',
+              model: 'gpt-4o-mini', // Using faster model
             },
             { headers: this.getHeaders() },
           )
@@ -326,7 +336,7 @@ export class OpenAIService {
                 `${this.baseUrl}/threads/${threadId}/runs`,
                 {
                   assistant_id: this.assistantId,
-                  model: 'gpt-4-turbo-preview',
+                  model: 'gpt-3.5-turbo', // Using faster model
                 },
                 this.getRequestConfig(),
               )
@@ -350,15 +360,17 @@ export class OpenAIService {
       // Poll for completion with timeout
       this.logger.log('Polling for completion...');
       let runStatus = runResponse.status;
-      let startTime = Date.now();
+      const startTime = Date.now();
 
       while (
         (runStatus === 'queued' || runStatus === 'in_progress') &&
         Date.now() - startTime < this.maxPollingTime
       ) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.pollingInterval),
-        );
+        const elapsedTime = Date.now() - startTime;
+        const pollingInterval = this.calculatePollingInterval(elapsedTime);
+
+        this.logger.debug(`Waiting ${pollingInterval}ms before next poll...`);
+        await new Promise((resolve) => setTimeout(resolve, pollingInterval));
 
         const statusResponse = await this.retryOperation(
           () =>
