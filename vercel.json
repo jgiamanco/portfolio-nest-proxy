@@ -14,5 +14,29 @@
       "src": "/(.*)",
       "dest": "src/main.ts"
     }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://jacobgiamanco.vercel.app"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,POST,PUT,DELETE,OPTIONS,PATCH,HEAD"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type,Accept,Authorization,Origin,X-Requested-With"
+        },
+        {
+          "key": "Access-Control-Expose-Headers",
+          "value": "Content-Length,Content-Type"
+        },
+        { "key": "Access-Control-Max-Age", "value": "86400" }
+      ]
+    }
   ]
 }
