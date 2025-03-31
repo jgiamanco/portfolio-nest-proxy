@@ -14,7 +14,7 @@ import {
 @Injectable()
 export class OpenAIService {
   private readonly apiKey: string;
-  private readonly assistantId: string;
+  private readonly assistantId = 'asst_H6bV1Mn6VCb2OuplombtzW58';
   private readonly baseUrl = 'https://api.openai.com/v1';
   private readonly timeout = 60000; // 60 seconds timeout
   private readonly maxRetries = 3;
@@ -29,14 +29,6 @@ export class OpenAIService {
       throw new Error('OPENAI_API_KEY is not defined in environment variables');
     }
     this.apiKey = apiKey;
-
-    const assistantId = this.configService.get<string>('OPENAI_ASSISTANT_ID');
-    if (!assistantId) {
-      throw new Error(
-        'OPENAI_ASSISTANT_ID is not defined in environment variables',
-      );
-    }
-    this.assistantId = assistantId;
   }
 
   private getHeaders() {
