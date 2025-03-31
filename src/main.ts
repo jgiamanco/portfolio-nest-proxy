@@ -31,9 +31,6 @@ async function bootstrap() {
     maxAge: 86400, // 24 hours
   });
 
-  // Add global prefix for all routes
-  app.setGlobalPrefix('api');
-
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`Server is running on port ${port}`);
