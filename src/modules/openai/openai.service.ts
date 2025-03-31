@@ -20,6 +20,8 @@ export class OpenAIService {
   private readonly timeout = 30000; // 30 seconds timeout
   private readonly maxRetries = 3;
   private readonly retryDelay = 2000; // 2 seconds
+  private readonly pollingInterval = 500; // 500ms polling interval
+  private readonly maxPollingTime = 45000; // 45 seconds maximum polling time
 
   constructor(
     private readonly httpService: HttpService,
@@ -348,15 +350,15 @@ export class OpenAIService {
       // Poll for completion with timeout
       this.logger.log('Polling for completion...');
       let runStatus = runResponse.status;
-      let attempts = 0;
-      const maxAttempts = 10; // 10 seconds maximum wait time
+      let startTime = Date.now();
 
       while (
         (runStatus === 'queued' || runStatus === 'in_progress') &&
-        attempts < maxAttempts
+        Date.now() - startTime < this.maxPollingTime
       ) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        attempts++;
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.pollingInterval),
+        );
 
         const statusResponse = await this.retryOperation(
           () =>
