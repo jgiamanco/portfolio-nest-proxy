@@ -3,6 +3,9 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   console.log('Starting server...');
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('Port:', process.env.PORT);
+
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS with updated origins
@@ -37,14 +40,19 @@ async function bootstrap() {
   console.log('Available routes:');
   const server = app.getHttpServer();
   const router = server._events.request._router;
-  console.log(
-    router.stack
-      .filter((layer) => layer.route)
-      .map((layer) => ({
-        path: layer.route?.path,
-        method: layer.route?.stack[0].method,
-      })),
-  );
+  const routes = router.stack
+    .filter((layer) => layer.route)
+    .map((layer) => ({
+      path: layer.route?.path,
+      method: layer.route?.stack[0].method,
+    }));
+  console.log('Routes:', JSON.stringify(routes, null, 2));
+
+  // Log the full URL where the server is running
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : `http://localhost:${port}`;
+  console.log(`Server is accessible at: ${baseUrl}`);
 }
 
 bootstrap().catch((error) => {

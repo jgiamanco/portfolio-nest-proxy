@@ -14,11 +14,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/dist/main.js"
+      "destination": "/src/main.ts"
     },
     {
       "source": "/(.*)",
-      "destination": "/dist/main.js"
+      "destination": "/src/main.ts"
     }
   ],
   "headers": [
