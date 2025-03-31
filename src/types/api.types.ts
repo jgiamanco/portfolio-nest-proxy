@@ -167,11 +167,11 @@ export interface SportsGameResponse {
   HomeTeam?: string;
   LocalTeam?: string;
   AwayTeamRuns?: number;
-  AwayTeamScore?: number;
+  AwayTeamScore?: number | null;
   AwayScore?: number;
   VenueTeamScore?: number;
   HomeTeamRuns?: number;
-  HomeTeamScore?: number;
+  HomeTeamScore?: number | null;
   HomeScore?: number;
   LocalTeamScore?: number;
   Quarter?: string;
@@ -181,7 +181,7 @@ export interface SportsGameResponse {
   MinutesRemaining?: number;
   TimeRemainingSeconds?: number;
   SecondsRemaining?: number;
-  Channel?: string;
+  Channel?: string | null;
   Broadcast?: string;
   StadiumDetails?: string;
   Venue?: string;
